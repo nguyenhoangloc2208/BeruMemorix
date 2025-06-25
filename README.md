@@ -30,24 +30,29 @@ npm run validate:mcp
 ```
 
 4. **Add to Cursor MCP configuration:**
-Add BeruMemorix to your global `~/.cursor/mcp.json`:
+Use the automation script to configure Cursor:
+```bash
+./scripts/update_cursor_config.sh
+```
+
+Or manually add BeruMemorix to your global `~/.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
     "BeruMemorix": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "tsx", "src/mcp/server.ts"],
-      "cwd": "/path/to/your/BeruMemorix",
-      "env": {}
+      "command": "/full/path/to/npx",
+      "args": [
+        "-y",
+        "tsx", 
+        "/full/path/to/BeruMemorix/src/mcp/server.ts"
+      ],
+      "env": {
+        "NODE_PATH": "/path/to/node_modules"
+      }
     }
   }
 }
-```
-
-Or use the automation script:
-```bash
-./scripts/update_cursor_config.sh
 ```
 
 5. **Restart Cursor completely** (not just reload window)
@@ -110,8 +115,8 @@ If BeruMemorix doesn't appear in Cursor:
 - Ensure working directory paths are correct
 
 **"Command not found: tsx"**
-- Configuration uses full npx path, should work automatically
-- Verify with: `npx tsx --version`
+- Script now uses absolute npx path, should work automatically
+- Verify Node.js setup: `npx tsx --version`
 
 **"Server not responding"**
 - Check if server starts: `npm run mcp`

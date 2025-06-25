@@ -1,11 +1,11 @@
 {
   "mcpServers": {
-    "BeruMemorix Memory Server": {
-      "command": "/Users/beru/.nvm/versions/node/v20.19.0/bin/node",
-      "args": ["/Users/beru/Documents/GitHub/BeruMemorix/node_modules/.bin/tsx", "/Users/beru/Documents/GitHub/BeruMemorix/src/mcp/server.ts"],
-      "env": {
-        "NODE_ENV": "development"
-      }
+    "BeruMemorix": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "tsx", "src/mcp/server.ts"],
+      "cwd": "/Users/beru/Documents/GitHub/BeruMemorix",
+      "env": {}
     }
   }
 }
