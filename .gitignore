@@ -60,3 +60,11 @@ docker/logs/
 
 # Cursor
 .cursor/
+
+# Data files
+data/*
+
+# Temporary files
+*.tmp
+*.temp
+.temp/

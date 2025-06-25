@@ -2,24 +2,9 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { nanoid } from "nanoid";
 import { z } from "zod";
-
-// Memory storage interface
-interface MemoryItem {
-  id: string;
-  content: string;
-  metadata: {
-    title?: string;
-    tags?: string[];
-    category?: string;
-    createdAt: string;
-    updatedAt: string;
-  };
-}
-
-// Memory storage - simple in-memory Map for demonstration
-const memories = new Map<string, MemoryItem>();
+import { memoryStorage } from "../services/memory-storage.js";
+import type { MemoryItem } from "../services/memory-storage.js";
 
 // Create the MCP server
 const server = new McpServer({
@@ -55,22 +40,13 @@ async function storeMemory(args: z.infer<typeof StoreMemorySchema>) {
   try {
     const { content, title, tags, category } = args;
 
-    const id = nanoid();
-    const now = new Date().toISOString();
+    // Filter out undefined values
+    const metadata: Partial<MemoryItem["metadata"]> = {};
+    if (title !== undefined) metadata.title = title;
+    if (tags !== undefined) metadata.tags = tags;
+    if (category !== undefined) metadata.category = category;
 
-    const memory: MemoryItem = {
-      id,
-      content,
-      metadata: {
-        ...(title && { title }),
-        tags: tags || [],
-        ...(category && { category }),
-        createdAt: now,
-        updatedAt: now,
-      },
-    };
-
-    memories.set(id, memory);
+    const id = await memoryStorage.store(content, metadata);
 
     return {
       content: [
@@ -113,7 +89,7 @@ async function retrieveMemory(args: z.infer<typeof RetrieveMemorySchema>) {
   try {
     const { id } = args;
 
-    const memory = memories.get(id);
+    const memory = await memoryStorage.retrieve(id);
     if (!memory) {
       return {
         content: [
@@ -173,35 +149,13 @@ async function searchMemory(args: z.infer<typeof SearchMemorySchema>) {
   try {
     const { query, category, tags, limit } = args;
 
-    const allMemories = Array.from(memories.values());
+    // Filter out undefined values
+    const options: { category?: string; tags?: string[]; limit?: number } = {};
+    if (category !== undefined) options.category = category;
+    if (tags !== undefined) options.tags = tags;
+    if (limit !== undefined) options.limit = limit;
 
-    // Simple search implementation
-    let filteredMemories = allMemories.filter((memory) => {
-      // Content search
-      const contentMatch =
-        memory.content.toLowerCase().includes(query.toLowerCase()) ||
-        (memory.metadata.title &&
-          memory.metadata.title.toLowerCase().includes(query.toLowerCase()));
-
-      // Category filter
-      const categoryMatch = !category || memory.metadata.category === category;
-
-      // Tags filter
-      const tagsMatch =
-        !tags || tags.some((tag) => memory.metadata.tags?.includes(tag));
-
-      return contentMatch && categoryMatch && tagsMatch;
-    });
-
-    // Sort by updated date (most recent first)
-    filteredMemories.sort(
-      (a, b) =>
-        new Date(b.metadata.updatedAt).getTime() -
-        new Date(a.metadata.updatedAt).getTime()
-    );
-
-    // Apply limit
-    filteredMemories = filteredMemories.slice(0, limit);
+    const memories = await memoryStorage.search(query, options);
 
     return {
       content: [
@@ -210,8 +164,8 @@ async function searchMemory(args: z.infer<typeof SearchMemorySchema>) {
           text: JSON.stringify(
             {
               success: true,
-              count: filteredMemories.length,
-              memories: filteredMemories,
+              count: memories.length,
+              memories,
             },
             null,
             2
@@ -242,11 +196,7 @@ async function searchMemory(args: z.infer<typeof SearchMemorySchema>) {
 // Get memory stats function
 async function getMemoryStats() {
   try {
-    const allMemories = Array.from(memories.values());
-    const categories = new Set(
-      allMemories.map((m) => m.metadata.category).filter(Boolean)
-    );
-    const tags = new Set(allMemories.flatMap((m) => m.metadata.tags || []));
+    const stats = await memoryStorage.getStats();
 
     return {
       content: [
@@ -255,13 +205,7 @@ async function getMemoryStats() {
           text: JSON.stringify(
             {
               success: true,
-              stats: {
-                totalMemories: allMemories.length,
-                categoriesCount: categories.size,
-                tagsCount: tags.size,
-                categories: Array.from(categories),
-                tags: Array.from(tags),
-              },
+              stats,
             },
             null,
             2
@@ -294,7 +238,7 @@ async function deleteMemory(args: z.infer<typeof DeleteMemorySchema>) {
   try {
     const { id } = args;
 
-    const existed = memories.has(id);
+    const existed = await memoryStorage.delete(id);
     if (!existed) {
       return {
         content: [
@@ -313,8 +257,6 @@ async function deleteMemory(args: z.infer<typeof DeleteMemorySchema>) {
         isError: true,
       };
     }
-
-    memories.delete(id);
 
     return {
       content: [
