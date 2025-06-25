@@ -1,29 +1,35 @@
-import { appConfig } from '@/config';
-import winston from 'winston';
+import { appConfig } from "@/config";
+import winston from "winston";
+import { nanoid } from "nanoid";
 
 const { level, format } = appConfig.logging;
 
 const loggerFormat = winston.format.combine(
   winston.format.timestamp({
-    format: 'YYYY-MM-DD HH:mm:ss.SSS',
+    format: "YYYY-MM-DD HH:mm:ss.SSS",
   }),
   winston.format.errors({ stack: true }),
   winston.format.splat(),
-  format === 'json'
+  format === "json"
     ? winston.format.json()
     : winston.format.combine(
         winston.format.colorize(),
-        winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
-          const metaStr = Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
-          return `${timestamp} [${level}]: ${message}${stack ? `\n${stack}` : ''}${metaStr}`;
-        })
+        winston.format.printf(
+          ({ timestamp, level, message, stack, ...meta }) => {
+            const metaStr =
+              Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : "";
+            return `${timestamp} [${level}]: ${message}${
+              stack ? `\n${stack}` : ""
+            }${metaStr}`;
+          }
+        )
       )
 );
 
 const logger = winston.createLogger({
   level,
   format: loggerFormat,
-  defaultMeta: { service: 'beru-memorix' },
+  defaultMeta: { service: "beru-memorix" },
   transports: [
     new winston.transports.Console({
       handleExceptions: true,
@@ -33,11 +39,11 @@ const logger = winston.createLogger({
 });
 
 // Add file transport in production
-if (appConfig.server.environment === 'production') {
+if (appConfig.server.environment === "production") {
   logger.add(
     new winston.transports.File({
-      filename: 'logs/error.log',
-      level: 'error',
+      filename: "logs/error.log",
+      level: "error",
       maxsize: 5242880, // 5MB
       maxFiles: 10,
     })
@@ -45,7 +51,7 @@ if (appConfig.server.environment === 'production') {
 
   logger.add(
     new winston.transports.File({
-      filename: 'logs/combined.log',
+      filename: "logs/combined.log",
       maxsize: 5242880, // 5MB
       maxFiles: 10,
     })
@@ -53,3 +59,5 @@ if (appConfig.server.environment === 'production') {
 }
 
 export { logger };
+
+export const generateId = () => nanoid();
