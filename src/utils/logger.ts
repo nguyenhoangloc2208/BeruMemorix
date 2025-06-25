@@ -1,6 +1,5 @@
 import { appConfig } from "@/config";
 import winston from "winston";
-import { nanoid } from "nanoid";
 
 const { level, format } = appConfig.logging;
 
@@ -59,5 +58,3 @@ if (appConfig.server.environment === "production") {
 }
 
 export { logger };
-
-export const generateId = () => nanoid();
