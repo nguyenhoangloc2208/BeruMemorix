@@ -1,0 +1,85 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database - Optimized for TablePlus
+  postgres:
+    image: postgres:15-alpine
+    container_name: beru_memorix_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: beru_memorix
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: your_secure_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - beru_memorix_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: beru_memorix_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - beru_memorix_network
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: beru_memorix_qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - beru_memorix_network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  qdrant_data:
+    driver: local
+
+networks:
+  beru_memorix_network:
+    driver: bridge
+# TablePlus Connection Guide:
+# 1. Start services: docker-compose up -d
+# 2. Create new connection in TablePlus:
+#    - Type: PostgreSQL
+#    - Host: localhost
+#    - Port: 5432
+#    - User: postgres
+#    - Password: your_secure_password
+#    - Database: beru_memorix
