@@ -1,0 +1,33 @@
+[
+  {
+    "id": "cv4J380GMOOcxBajSNZHq",
+    "content": "This is a test memory for file-based storage",
+    "metadata": {
+      "title": "File Storage Test",
+      "tags": [
+        "test",
+        "storage",
+        "file"
+      ],
+      "category": "testing",
+      "createdAt": "2025-06-25T16:13:57.517Z",
+      "updatedAt": "2025-06-25T16:13:57.517Z"
+    }
+  },
+  {
+    "id": "Az760pTQMkXMLAYsXnKKc",
+    "content": "Hôm nay tôi đã học cách setup MCP server với file-based storage. Cursor restart vẫn giữ được dữ liệu.",
+    "metadata": {
+      "title": "MCP Learning Session",
+      "tags": [
+        "mcp",
+        "cursor",
+        "setup",
+        "storage"
+      ],
+      "category": "learning",
+      "createdAt": "2025-06-25T16:14:30.545Z",
+      "updatedAt": "2025-06-25T16:14:30.545Z"
+    }
+  }
+]

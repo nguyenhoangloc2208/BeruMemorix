@@ -1,0 +1,22 @@
+# Keep the main memories file
+!memories.json
+
+# Ignore backup files
+*.backup
+*.bak
+*.old
+
+# Ignore temporary files
+*.tmp
+*.temp
+.temp/
+
+# Ignore logs in data directory
+*.log
+
+# Ignore any test data
+test-*
+*-test.*
+
+# Keep this .gitignore file
+!.gitignore
