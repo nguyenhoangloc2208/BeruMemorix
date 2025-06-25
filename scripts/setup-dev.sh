@@ -49,7 +49,7 @@ echo "✅ Redis is ready!"
 
 # Wait for Qdrant to be ready
 echo "⏳ Waiting for Qdrant to be ready..."
-until curl -f http://localhost:6333/health > /dev/null 2>&1; do
+until curl -f http://localhost:6333/ > /dev/null 2>&1; do
     echo "   Waiting for Qdrant..."
     sleep 2
 done

@@ -1,250 +1,178 @@
-# BeruMemorix - MCP Memory Management System
+# BeruMemorix 🧠
 
-![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white)
-![Node.js](https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
-![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
+> **Status: ✅ WORKING** - MCP Server đã hoạt động hoàn hảo!
 
-BeruMemorix là một MCP (Model Context Protocol) server để quản lý bộ nhớ AI trong các IDE, với hỗ trợ đầy đủ cho TablePlus để quản lý cơ sở dữ liệu.
-
-## ✨ Tính năng
-
-- 🧠 **Quản lý bộ nhớ thông minh**: Short-term, long-term, session, và persistent memories
-- 📊 **Analytics tích hợp**: Theo dõi việc sử dụng và hiệu suất bộ nhớ
-- 🔍 **Tìm kiếm semantic**: Sử dụng Qdrant vector database
-- 💎 **TablePlus Ready**: Cấu hình tối ưu cho TablePlus users
-- 🐳 **Docker Support**: Setup development dễ dàng
-- 🔒 **Type Safe**: Full TypeScript với strict mode
-- ⚡ **Performance**: Redis caching và PostgreSQL indexing
+A Model Context Protocol (MCP) memory management system designed for AI interactions in IDEs like Cursor.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
+- Node.js 18+ 
+- npm 8+
+- Cursor IDE with MCP support
 
-- Node.js 18+
-- Docker Desktop
-- TablePlus (tùy chọn)
+### Installation & Setup
 
-### 1. Installation
-
+1. **Clone the repository:**
 ```bash
 git clone https://github.com/BeruMemorix/BeruMemorix.git
 cd BeruMemorix
+```
+
+2. **Install dependencies:**
+```bash
 npm install
 ```
 
-### 2. Environment Setup
+3. **Verify MCP setup:**
+```bash
+npm run validate:mcp
+```
+
+4. **Add to Cursor MCP configuration:**
+The configuration is already in your `~/.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "BeruMemorix": {
+      "command": "/Users/beru/.nvm/versions/node/v20.19.0/bin/npx",
+      "args": ["tsx", "src/mcp/server.ts"],
+      "cwd": "/Users/beru/Documents/GitHub/BeruMemorix",
+      "env": {
+        "NODE_ENV": "development",
+        "PATH": "/Users/beru/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:/usr/bin:/bin"
+      }
+    }
+  }
+}
+```
+
+5. **Restart Cursor completely** (not just reload window)
+
+## 🧪 Testing
 
 ```bash
-# Copy environment template
-cp .env.example .env
+# Test MCP server functionality
+npm run test:mcp
 
-# Setup development environment (starts databases)
-npm run setup:dev
+# Validate complete MCP setup  
+npm run validate:mcp
+
+# Start development server
+npm run dev
 ```
 
-### 3. TablePlus Connection
+## 🔧 Available MCP Tools
 
-Mở TablePlus và tạo connection mới:
+BeruMemorix provides 5 memory management tools:
 
+1. **`store_memory`** - Store a new memory with metadata
+2. **`retrieve_memory`** - Retrieve a memory by ID  
+3. **`search_memory`** - Search memories by content/metadata
+4. **`get_memory_stats`** - Get memory usage statistics
+5. **`delete_memory`** - Delete a memory by ID
+
+## 💡 Usage in Cursor
+
+Once configured, you can use BeruMemorix directly in Cursor:
+
+- **"store memory"** - Save important information for later
+- **"search memory"** - Find previously stored information  
+- **"get memory stats"** - View memory usage statistics
+
+Example:
 ```
-Type: PostgreSQL
-Host: localhost
-Port: 5432
-Username: postgres
-Password: your_secure_password
-Database: beru_memorix
+User: "store memory: Remember that I prefer TypeScript over JavaScript for new projects"
+AI: *Uses BeruMemorix to store this preference*
+
+User: "What are my coding preferences?"  
+AI: *Searches BeruMemorix and finds the stored preference*
 ```
 
-### 4. Start MCP Server
+## 🐛 Troubleshooting
 
-```bash
-# Test server functionality
-npm run test
+If BeruMemorix doesn't appear in Cursor:
 
-# Start MCP server
-npm run mcp
-```
+1. **Restart Cursor completely** (most common fix)
+2. Check other MCP servers are working
+3. Verify Node.js version (18+ required): `node --version`
+4. Check developer console: `Help > Toggle Developer Tools`
+5. Review Cursor MCP logs in `~/.cursor/logs/`
+6. Re-run validation: `npm run validate:mcp`
 
-## 🏗️ Architecture
+### Common Issues
+
+**"BeruMemorix not found"** 
+- Run `npm run validate:mcp` to check configuration
+- Ensure working directory paths are correct
+
+**"Command not found: tsx"**
+- Configuration uses full npx path, should work automatically
+- Verify with: `npx tsx --version`
+
+**"Server not responding"**
+- Check if server starts: `npm run mcp`
+- Verify JSON-RPC communication works
+
+## 📁 Project Structure
 
 ```
 BeruMemorix/
 ├── src/
-│   ├── mcp/           # MCP Server implementation
-│   ├── types/         # TypeScript type definitions
-│   ├── config/        # Configuration management
-│   ├── utils/         # Utility functions
-│   └── server.ts      # Main server entry point
-├── docker/            # Docker configuration
-│   ├── docker-compose.yml
-│   └── init-scripts/  # Database initialization
-├── scripts/           # Development scripts
-└── tests/             # Test suites
+│   ├── mcp/
+│   │   └── server.ts          # Main MCP server implementation
+│   ├── types/
+│   │   └── memory.ts          # Memory type definitions
+│   └── utils/
+│       └── logger.ts          # Logging utilities
+├── scripts/
+│   ├── test-mcp.ts           # MCP functionality tests
+│   ├── validate-mcp.ts       # MCP setup validation
+│   └── setup-dev.sh          # Development environment setup
+└── package.json              # Dependencies and scripts
 ```
 
-## 🗄️ Database Schema
-
-### Memories Table
-```sql
-CREATE TABLE memories (
-    id VARCHAR(255) PRIMARY KEY,
-    type memory_type NOT NULL,
-    content TEXT NOT NULL,
-    source VARCHAR(255) NOT NULL,
-    context TEXT,
-    tags TEXT[],
-    importance_score INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE,
-    updated_at TIMESTAMP WITH TIME ZONE,
-    last_accessed TIMESTAMP WITH TIME ZONE,
-    access_count INTEGER,
-    metadata JSONB
-);
-```
-
-### Viewing Data in TablePlus
-
-1. Connect to your PostgreSQL database
-2. Navigate to `memories` table
-3. Use SQL queries to filter and analyze data:
-
-```sql
--- Most important memories
-SELECT * FROM memories ORDER BY importance_score DESC LIMIT 10;
-
--- Recent memories
-SELECT * FROM memories ORDER BY created_at DESC LIMIT 20;
-
--- Search by tags
-SELECT * FROM memories WHERE 'typescript' = ANY(tags);
-
--- Memory stats by type
-SELECT type, COUNT(*), AVG(importance_score) 
-FROM memories GROUP BY type;
-```
-
-## 🛠️ Development
-
-### Available Scripts
+## 🛠 Development
 
 ```bash
-# Development
-npm run dev           # Start with hot reload
-npm run build         # Build for production
-npm run start         # Start production server
+# Start in development mode
+npm run dev
 
-# Testing
-npm run test          # Run tests
-npm run test:coverage # Run with coverage
-npm run test:ui       # Open test UI
+# Run tests
+npm test
 
-# Code Quality
-npm run lint          # Lint code
-npm run format        # Format code
-npm run check         # Run all checks
+# Type checking
+npm run type-check
 
-# Database
-npm run setup:dev     # Setup development environment
-npm run mcp           # Start MCP server
+# Code formatting
+npm run format:write
+
+# Linting
+npm run lint:fix
 ```
 
-### Project Structure
+## 📊 Features
 
-```typescript
-// MCP Tools Available
-export interface MCPTools {
-  store_memory: (request: CreateMemoryRequest) => Promise<Memory>;
-  retrieve_memory: (id: string) => Promise<Memory>;
-  search_memory: (query: SearchMemoryRequest) => Promise<MemorySearchResult[]>;
-  get_memory_stats: () => Promise<MemoryStats>;
-  delete_memory: (id: string) => Promise<void>;
-}
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `3000` |
-| `POSTGRES_HOST` | PostgreSQL host | `localhost` |
-| `POSTGRES_PORT` | PostgreSQL port | `5432` |
-| `POSTGRES_DB` | Database name | `beru_memorix` |
-| `REDIS_HOST` | Redis host | `localhost` |
-| `QDRANT_URL` | Qdrant URL | `http://localhost:6333` |
-
-### Database Services
-
-```bash
-# Start all services
-docker-compose -f docker/docker-compose.yml up -d
-
-# Stop all services
-docker-compose -f docker/docker-compose.yml down
-
-# View logs
-docker-compose -f docker/docker-compose.yml logs -f
-```
-
-## 📊 Monitoring & Analytics
-
-### TablePlus Queries
-
-```sql
--- Performance analysis
-SELECT 
-  type,
-  COUNT(*) as total_memories,
-  AVG(access_count) as avg_access,
-  AVG(importance_score) as avg_importance
-FROM memories 
-GROUP BY type;
-
--- Recent activity
-SELECT 
-  id,
-  content,
-  last_accessed,
-  access_count
-FROM memories 
-ORDER BY last_accessed DESC 
-LIMIT 10;
-```
-
-### Service Health Check
-
-```bash
-# Check PostgreSQL
-docker exec beru_memorix_postgres pg_isready -U postgres
-
-# Check Redis
-docker exec beru_memorix_redis redis-cli ping
-
-# Check Qdrant
-curl http://localhost:6333/health
-```
+- ✅ **Memory Storage** - Store text with metadata
+- ✅ **Smart Search** - Content and tag-based searching  
+- ✅ **Memory Types** - Short-term, long-term, session, persistent
+- ✅ **Statistics** - Usage tracking and analytics
+- ✅ **MCP Integration** - Seamless IDE integration
+- 🔄 **Vector Search** - Coming soon
+- 🔄 **Database Persistence** - Coming soon
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open Pull Request
 
-## 📝 License
+## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Model Context Protocol](https://modelcontextprotocol.io/) - MCP specification
-- [TablePlus](https://tableplus.com/) - Database management tool
-- [TypeScript](https://www.typescriptlang.org/) - Language and tooling
-- [Biome](https://biomejs.dev/) - Code quality tools
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Made with ❤️ for TablePlus users and AI developers**
+**Made with ❤️ for the AI development community**

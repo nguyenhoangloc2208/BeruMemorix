@@ -32,7 +32,8 @@
     "mcp:validate": "tsx src/scripts/validate-mcp.ts",
     "setup:dev": "./scripts/setup-dev.sh",
     "mcp": "tsx src/mcp/server.ts",
-    "test:mcp": "tsx scripts/test-mcp.ts"
+    "test:mcp": "tsx scripts/test-mcp.ts",
+    "validate:mcp": "tsx scripts/validate-mcp.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
