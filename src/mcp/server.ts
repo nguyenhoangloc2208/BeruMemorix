@@ -1,383 +1,436 @@
-import type {
-  CreateMemoryRequest,
-  Memory,
-  MemorySearchResult,
-  MemoryStats,
-  SearchMemoryRequest,
-} from "@/types/memory";
-import { logger } from "@/utils/logger";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+#!/usr/bin/env node
+
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  type CallToolRequest,
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  type Tool,
-} from "@modelcontextprotocol/sdk/types.js";
+import { nanoid } from "nanoid";
+import { z } from "zod";
 
-export class BeruMemorixServer {
-  private server: Server;
-  private memories: Map<string, Memory> = new Map();
+// Memory storage interface
+interface MemoryItem {
+  id: string;
+  content: string;
+  metadata: {
+    title?: string;
+    tags?: string[];
+    category?: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
 
-  constructor() {
-    this.server = new Server(
-      {
-        name: "beru-memorix",
-        version: "1.0.0",
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
-      }
-    );
+// Memory storage - simple in-memory Map for demonstration
+const memories = new Map<string, MemoryItem>();
 
-    this.setupToolHandlers();
-  }
+// Create the MCP server
+const server = new McpServer({
+  name: "BeruMemorix",
+  version: "1.0.0",
+});
 
-  private setupToolHandlers(): void {
-    // List available tools
-    this.server.setRequestHandler(
-      ListToolsRequestSchema,
-      async (): Promise<{ tools: Tool[] }> => {
-        return {
-          tools: [
-            {
-              name: "store_memory",
-              description: "Store a new memory with optional metadata",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  content: { type: "string", description: "Content to store" },
-                  type: {
-                    type: "string",
-                    enum: ["short_term", "long_term", "session", "persistent"],
-                    description: "Type of memory",
-                    default: "short_term",
-                  },
-                  source: {
-                    type: "string",
-                    description: "Source of the memory",
-                  },
-                  context: {
-                    type: "string",
-                    description: "Context information",
-                  },
-                  tags: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Tags for categorization",
-                  },
-                  importance_score: {
-                    type: "number",
-                    minimum: 0,
-                    maximum: 10,
-                    description: "Importance score (0-10)",
-                  },
-                },
-                required: ["content", "source"],
-              },
-            },
-            {
-              name: "retrieve_memory",
-              description: "Retrieve a memory by ID",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  id: { type: "string", description: "Memory ID" },
-                },
-                required: ["id"],
-              },
-            },
-            {
-              name: "search_memory",
-              description: "Search memories by content or metadata",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  query: { type: "string", description: "Search query" },
-                  type: {
-                    type: "string",
-                    enum: ["short_term", "long_term", "session", "persistent"],
-                    description: "Filter by memory type",
-                  },
-                  limit: {
-                    type: "number",
-                    minimum: 1,
-                    maximum: 100,
-                    default: 10,
-                    description: "Maximum number of results",
-                  },
-                  include_metadata: {
-                    type: "boolean",
-                    default: true,
-                    description: "Include metadata in results",
-                  },
-                },
-                required: ["query"],
-              },
-            },
-            {
-              name: "get_memory_stats",
-              description: "Get memory usage statistics",
-              inputSchema: {
-                type: "object",
-                properties: {},
-              },
-            },
-            {
-              name: "delete_memory",
-              description: "Delete a memory by ID",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  id: { type: "string", description: "Memory ID" },
-                },
-                required: ["id"],
-              },
-            },
-          ],
-        };
-      }
-    );
+// Validation schemas
+const StoreMemorySchema = z.object({
+  content: z.string().min(1, "Content is required"),
+  title: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  category: z.string().optional(),
+});
 
-    // Handle tool calls
-    this.server.setRequestHandler(
-      CallToolRequestSchema,
-      async (request: CallToolRequest) => {
-        const { name, arguments: args } = request.params;
+const RetrieveMemorySchema = z.object({
+  id: z.string().min(1, "Memory ID is required"),
+});
 
-        try {
-          switch (name) {
-            case "store_memory":
-              return await this.storeMemory(
-                args as unknown as CreateMemoryRequest
-              );
-            case "retrieve_memory": {
-              if (!args || typeof args !== "object") {
-                throw new Error("Invalid arguments for retrieve_memory");
-              }
-              return await this.retrieveMemory(args.id as string);
-            }
-            case "search_memory":
-              return await this.searchMemory(
-                args as unknown as SearchMemoryRequest
-              );
-            case "get_memory_stats":
-              return await this.getMemoryStats();
-            case "delete_memory": {
-              if (!args || typeof args !== "object") {
-                throw new Error("Invalid arguments for delete_memory");
-              }
-              return await this.deleteMemory(args.id as string);
-            }
-            default:
-              throw new Error(`Unknown tool: ${name}`);
-          }
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
-          logger.error("Tool execution error", {
-            tool: name,
-            error: errorMessage,
-          });
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error executing ${name}: ${errorMessage}`,
-              },
-            ],
-          };
-        }
-      }
-    );
-  }
+const SearchMemorySchema = z.object({
+  query: z.string().min(1, "Search query is required"),
+  category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  limit: z.number().min(1).max(100).optional().default(10),
+});
 
-  private async storeMemory(request: CreateMemoryRequest) {
-    const { nanoid } = await import("nanoid");
+const DeleteMemorySchema = z.object({
+  id: z.string().min(1, "Memory ID is required"),
+});
 
-    const memory: Memory = {
-      id: nanoid(),
-      type: request.type || "short_term",
-      content: request.content,
+// Store memory function
+async function storeMemory(args: z.infer<typeof StoreMemorySchema>) {
+  try {
+    const { content, title, tags, category } = args;
+
+    const id = nanoid();
+    const now = new Date().toISOString();
+
+    const memory: MemoryItem = {
+      id,
+      content,
       metadata: {
-        timestamp: new Date(),
-        source: request.source,
-        context: request.context || "",
-        tags: request.tags || [],
-        importance_score: request.importance_score || 5,
-        access_count: 0,
+        ...(title && { title }),
+        tags: tags || [],
+        ...(category && { category }),
+        createdAt: now,
+        updatedAt: now,
       },
     };
 
-    this.memories.set(memory.id, memory);
-
-    logger.info("Memory stored", { id: memory.id, type: memory.type });
+    memories.set(id, memory);
 
     return {
       content: [
         {
-          type: "text",
-          text: `Memory stored successfully with ID: ${memory.id}`,
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              success: true,
+              id,
+              message: "Memory stored successfully",
+            },
+            null,
+            2
+          ),
         },
       ],
     };
+  } catch (error: any) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              success: false,
+              error: error.message || "Failed to store memory",
+            },
+            null,
+            2
+          ),
+        },
+      ],
+      isError: true,
+    };
   }
+}
 
-  private async retrieveMemory(id: string) {
-    const memory = this.memories.get(id);
+// Retrieve memory function
+async function retrieveMemory(args: z.infer<typeof RetrieveMemorySchema>) {
+  try {
+    const { id } = args;
 
+    const memory = memories.get(id);
     if (!memory) {
       return {
         content: [
           {
-            type: "text",
-            text: `Memory with ID ${id} not found`,
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                success: false,
+                error: "Memory not found",
+              },
+              null,
+              2
+            ),
           },
         ],
+        isError: true,
       };
     }
 
-    // Update access count
-    memory.metadata.access_count += 1;
-    memory.metadata.last_accessed = new Date();
-
-    logger.info("Memory retrieved", { id });
-
     return {
       content: [
         {
-          type: "text",
-          text: JSON.stringify(memory, null, 2),
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              success: true,
+              memory,
+            },
+            null,
+            2
+          ),
         },
       ],
     };
-  }
-
-  private async searchMemory(request: SearchMemoryRequest) {
-    const { query, type, limit = 10 } = request;
-    const results: MemorySearchResult[] = [];
-
-    for (const [_id, memory] of this.memories) {
-      if (type && memory.type !== type) {
-        continue;
-      }
-
-      // Simple text matching (in production, use vector similarity)
-      const contentMatch = memory.content
-        .toLowerCase()
-        .includes(query.toLowerCase());
-      const tagMatch = memory.metadata.tags.some((tag) =>
-        tag.toLowerCase().includes(query.toLowerCase())
-      );
-
-      if (contentMatch || tagMatch) {
-        results.push({
-          memory,
-          similarity_score: contentMatch ? 0.9 : 0.7,
-          rank: results.length + 1,
-        });
-      }
-    }
-
-    // Sort by similarity score and limit results
-    const sortedResults = results
-      .sort((a, b) => b.similarity_score - a.similarity_score)
-      .slice(0, limit);
-
-    logger.info("Memory search completed", {
-      query,
-      resultsCount: sortedResults.length,
-    });
-
+  } catch (error: any) {
     return {
       content: [
         {
-          type: "text",
-          text: JSON.stringify(sortedResults, null, 2),
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              success: false,
+              error: error.message || "Failed to retrieve memory",
+            },
+            null,
+            2
+          ),
         },
       ],
+      isError: true,
     };
-  }
-
-  private async getMemoryStats(): Promise<{
-    content: Array<{ type: string; text: string }>;
-  }> {
-    const stats: MemoryStats = {
-      total_memories: this.memories.size,
-      by_type: {
-        short_term: 0,
-        long_term: 0,
-        session: 0,
-        persistent: 0,
-      },
-      storage_used: 0,
-      avg_importance_score: 0,
-      most_recent_access: new Date(0),
-    };
-
-    let totalImportance = 0;
-
-    for (const memory of this.memories.values()) {
-      stats.by_type[memory.type] += 1;
-      stats.storage_used += JSON.stringify(memory).length;
-      totalImportance += memory.metadata.importance_score;
-
-      if (
-        memory.metadata.last_accessed &&
-        memory.metadata.last_accessed > stats.most_recent_access
-      ) {
-        stats.most_recent_access = memory.metadata.last_accessed;
-      }
-    }
-
-    stats.avg_importance_score =
-      this.memories.size > 0 ? totalImportance / this.memories.size : 0;
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(stats, null, 2),
-        },
-      ],
-    };
-  }
-
-  private async deleteMemory(id: string) {
-    const deleted = this.memories.delete(id);
-
-    if (!deleted) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Memory with ID ${id} not found`,
-          },
-        ],
-      };
-    }
-
-    logger.info("Memory deleted", { id });
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Memory with ID ${id} deleted successfully`,
-        },
-      ],
-    };
-  }
-
-  async start(): Promise<void> {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    logger.info("BeruMemorix MCP Server started");
   }
 }
 
-// Initialize and start the server
-const server = new BeruMemorixServer();
-server.start().catch(console.error);
+// Search memory function
+async function searchMemory(args: z.infer<typeof SearchMemorySchema>) {
+  try {
+    const { query, category, tags, limit } = args;
+
+    const allMemories = Array.from(memories.values());
+
+    // Simple search implementation
+    let filteredMemories = allMemories.filter((memory) => {
+      // Content search
+      const contentMatch =
+        memory.content.toLowerCase().includes(query.toLowerCase()) ||
+        (memory.metadata.title &&
+          memory.metadata.title.toLowerCase().includes(query.toLowerCase()));
+
+      // Category filter
+      const categoryMatch = !category || memory.metadata.category === category;
+
+      // Tags filter
+      const tagsMatch =
+        !tags || tags.some((tag) => memory.metadata.tags?.includes(tag));
+
+      return contentMatch && categoryMatch && tagsMatch;
+    });
+
+    // Sort by updated date (most recent first)
+    filteredMemories.sort(
+      (a, b) =>
+        new Date(b.metadata.updatedAt).getTime() -
+        new Date(a.metadata.updatedAt).getTime()
+    );
+
+    // Apply limit
+    filteredMemories = filteredMemories.slice(0, limit);
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              success: true,
+              count: filteredMemories.length,
+              memories: filteredMemories,
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  } catch (error: any) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              success: false,
+              error: error.message || "Failed to search memories",
+            },
+            null,
+            2
+          ),
+        },
+      ],
+      isError: true,
+    };
+  }
+}
+
+// Get memory stats function
+async function getMemoryStats() {
+  try {
+    const allMemories = Array.from(memories.values());
+    const categories = new Set(
+      allMemories.map((m) => m.metadata.category).filter(Boolean)
+    );
+    const tags = new Set(allMemories.flatMap((m) => m.metadata.tags || []));
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              success: true,
+              stats: {
+                totalMemories: allMemories.length,
+                categoriesCount: categories.size,
+                tagsCount: tags.size,
+                categories: Array.from(categories),
+                tags: Array.from(tags),
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  } catch (error: any) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              success: false,
+              error: error.message || "Failed to get memory stats",
+            },
+            null,
+            2
+          ),
+        },
+      ],
+      isError: true,
+    };
+  }
+}
+
+// Delete memory function
+async function deleteMemory(args: z.infer<typeof DeleteMemorySchema>) {
+  try {
+    const { id } = args;
+
+    const existed = memories.has(id);
+    if (!existed) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                success: false,
+                error: "Memory not found",
+              },
+              null,
+              2
+            ),
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    memories.delete(id);
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Memory deleted successfully",
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  } catch (error: any) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              success: false,
+              error: error.message || "Failed to delete memory",
+            },
+            null,
+            2
+          ),
+        },
+      ],
+      isError: true,
+    };
+  }
+}
+
+// Register tools using the McpServer pattern
+server.tool(
+  "store_memory",
+  "Store a memory with optional metadata",
+  {
+    content: z.string(),
+    title: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    category: z.string().optional(),
+  },
+  async (args) => {
+    const validated = StoreMemorySchema.parse(args);
+    return await storeMemory(validated);
+  }
+);
+
+server.tool(
+  "retrieve_memory",
+  "Retrieve a memory by ID",
+  {
+    id: z.string(),
+  },
+  async (args) => {
+    const validated = RetrieveMemorySchema.parse(args);
+    return await retrieveMemory(validated);
+  }
+);
+
+server.tool(
+  "search_memory",
+  "Search memories by content or metadata",
+  {
+    query: z.string(),
+    category: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    limit: z.number().optional(),
+  },
+  async (args) => {
+    const validated = SearchMemorySchema.parse(args);
+    return await searchMemory(validated);
+  }
+);
+
+server.tool("get_memory_stats", "Get memory usage statistics", {}, async () => {
+  return await getMemoryStats();
+});
+
+server.tool(
+  "delete_memory",
+  "Delete a memory by ID",
+  {
+    id: z.string(),
+  },
+  async (args) => {
+    const validated = DeleteMemorySchema.parse(args);
+    return await deleteMemory(validated);
+  }
+);
+
+// Start the server
+(async () => {
+  try {
+    console.error("BeruMemorix MCP Server starting...");
+
+    const transport = new StdioServerTransport();
+
+    // Ensure stdout is only used for JSON messages
+    const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+    process.stdout.write = (chunk: any, encoding?: any, callback?: any) => {
+      // Only allow JSON messages to pass through
+      if (typeof chunk === "string" && !chunk.startsWith("{")) {
+        return true; // Silently skip non-JSON messages
+      }
+      return originalStdoutWrite(chunk, encoding, callback);
+    };
+
+    await server.connect(transport);
+    console.error("BeruMemorix MCP Server connected successfully!");
+  } catch (error) {
+    console.error("Failed to initialize BeruMemorix MCP server:", error);
+    process.exit(1);
+  }
+})();
