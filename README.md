@@ -30,21 +30,24 @@ npm run validate:mcp
 ```
 
 4. **Add to Cursor MCP configuration:**
-The configuration is already in your `~/.cursor/mcp.json`:
+Add BeruMemorix to your global `~/.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
     "BeruMemorix": {
-      "command": "/Users/beru/.nvm/versions/node/v20.19.0/bin/npx",
-      "args": ["tsx", "src/mcp/server.ts"],
-      "cwd": "/Users/beru/Documents/GitHub/BeruMemorix",
-      "env": {
-        "NODE_ENV": "development",
-        "PATH": "/Users/beru/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:/usr/bin:/bin"
-      }
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "tsx", "src/mcp/server.ts"],
+      "cwd": "/path/to/your/BeruMemorix",
+      "env": {}
     }
   }
 }
+```
+
+Or use the automation script:
+```bash
+./scripts/update_cursor_config.sh
 ```
 
 5. **Restart Cursor completely** (not just reload window)
