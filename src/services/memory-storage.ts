@@ -2,6 +2,11 @@ import { promises as fs } from "fs";
 import { join, resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { nanoid } from "nanoid";
+import { EnhancedSearchService } from "./enhanced-search.js";
+import type {
+  SearchResponse,
+  EnhancedSearchOptions,
+} from "./enhanced-search.js";
 
 // Get project root directory
 const __filename = fileURLToPath(import.meta.url);
@@ -26,6 +31,7 @@ export class MemoryStorage {
   private readonly dataDir: string;
   private readonly dataFile: string;
   private isLoaded = false;
+  public enhancedSearchService = new EnhancedSearchService();
 
   constructor(dataDir = "data") {
     // Use project root to ensure it works from any working directory
@@ -129,7 +135,7 @@ export class MemoryStorage {
     return this.memories.get(id) || null;
   }
 
-  // Search memories
+  // Legacy search method (kept for backward compatibility)
   async search(
     query: string,
     options: {
@@ -138,38 +144,52 @@ export class MemoryStorage {
       limit?: number;
     } = {}
   ): Promise<MemoryItem[]> {
-    await this.loadFromFile();
-
-    const { category, tags, limit = 10 } = options;
-    const allMemories = Array.from(this.memories.values());
-
-    // Filter memories
-    let filteredMemories = allMemories.filter((memory) => {
-      // Content search
-      const contentMatch =
-        memory.content.toLowerCase().includes(query.toLowerCase()) ||
-        (memory.metadata.title &&
-          memory.metadata.title.toLowerCase().includes(query.toLowerCase()));
-
-      // Category filter
-      const categoryMatch = !category || memory.metadata.category === category;
-
-      // Tags filter
-      const tagsMatch =
-        !tags || tags.some((tag) => memory.metadata.tags?.includes(tag));
-
-      return contentMatch && categoryMatch && tagsMatch;
+    const enhancedResults = await this.searchEnhanced(query, {
+      ...options,
+      maxResults: options.limit || 10,
     });
 
-    // Sort by updated date (most recent first)
-    filteredMemories.sort(
-      (a, b) =>
-        new Date(b.metadata.updatedAt).getTime() -
-        new Date(a.metadata.updatedAt).getTime()
-    );
+    return enhancedResults.results.map((result) => result.memory);
+  }
 
-    // Apply limit
-    return filteredMemories.slice(0, limit);
+  // Enhanced search with fuzzy matching and suggestions
+  async searchEnhanced(
+    query: string,
+    options: Partial<EnhancedSearchOptions> & {
+      category?: string;
+      tags?: string[];
+      limit?: number;
+    } = {}
+  ): Promise<SearchResponse> {
+    await this.loadFromFile();
+
+    const allMemories = Array.from(this.memories.values());
+
+    // Apply legacy filters first if provided
+    let filteredMemories = allMemories;
+
+    if (options.category || options.tags) {
+      filteredMemories = allMemories.filter((memory) => {
+        const categoryMatch =
+          !options.category || memory.metadata.category === options.category;
+        const tagsMatch =
+          !options.tags ||
+          options.tags.some((tag) => memory.metadata.tags?.includes(tag));
+        return categoryMatch && tagsMatch;
+      });
+    }
+
+    // Convert limit to maxResults for enhanced search
+    const enhancedOptions: Partial<EnhancedSearchOptions> = {
+      ...options,
+      maxResults: options.limit || options.maxResults || 10,
+    };
+
+    return await this.enhancedSearchService.search(
+      query,
+      filteredMemories,
+      enhancedOptions
+    );
   }
 
   // Get all memories

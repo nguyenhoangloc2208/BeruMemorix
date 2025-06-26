@@ -24,11 +24,17 @@ const RetrieveMemorySchema = z.object({
   id: z.string().min(1, "Memory ID is required"),
 });
 
+// Enhanced unified search schema with all features
 const SearchMemorySchema = z.object({
   query: z.string().min(1, "Search query is required"),
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
   limit: z.number().min(1).max(100).optional().default(10),
+  // Enhanced search options
+  searchType: z.enum(["exact", "fuzzy", "auto"]).optional().default("auto"),
+  fuzzyTolerance: z.number().min(0).max(1).optional(),
+  includeSuggestions: z.boolean().optional().default(false),
+  maxSuggestions: z.number().min(1).max(20).optional().default(5),
 });
 
 const DeleteMemorySchema = z.object({
@@ -144,18 +150,48 @@ async function retrieveMemory(args: z.infer<typeof RetrieveMemorySchema>) {
   }
 }
 
-// Search memory function
+// Unified search memory function with all features
 async function searchMemory(args: z.infer<typeof SearchMemorySchema>) {
   try {
-    const { query, category, tags, limit } = args;
+    const {
+      query,
+      category,
+      tags,
+      limit,
+      searchType,
+      fuzzyTolerance,
+      includeSuggestions,
+      maxSuggestions,
+    } = args;
 
-    // Filter out undefined values
-    const options: { category?: string; tags?: string[]; limit?: number } = {};
-    if (category !== undefined) options.category = category;
-    if (tags !== undefined) options.tags = tags;
-    if (limit !== undefined) options.limit = limit;
+    // Build search options
+    const searchOptions: any = {};
+    if (category !== undefined) searchOptions.category = category;
+    if (tags !== undefined) searchOptions.tags = tags;
+    if (limit !== undefined) searchOptions.limit = limit;
+    if (fuzzyTolerance !== undefined)
+      searchOptions.fuzzyTolerance = fuzzyTolerance;
+    if (includeSuggestions !== undefined)
+      searchOptions.includeSuggestions = includeSuggestions;
+    if (searchType !== undefined) searchOptions.searchType = searchType;
 
-    const memories = await memoryStorage.search(query, options);
+    // Use enhanced search for all search types
+    const result = await memoryStorage.searchEnhanced(query, searchOptions);
+
+    // If suggestions requested but no results, generate suggestions
+    let suggestions: string[] = [];
+    if (includeSuggestions && result.results.length === 0) {
+      const allMemories = await memoryStorage.getAll();
+      suggestions =
+        await memoryStorage.enhancedSearchService.searchWithAutoComplete(
+          query,
+          allMemories,
+          maxSuggestions || 5
+        );
+    }
+
+    // Extract just the memories for backward compatibility
+    const memories = result.results.map((r) => r.memory);
 
     return {
       content: [
@@ -165,7 +201,10 @@ async function searchMemory(args: z.infer<typeof SearchMemorySchema>) {
             {
               success: true,
               count: memories.length,
-              memories,
+              memories: memories,
+              searchType: result.searchType,
+              executionTime: result.executionTime,
+              ...(suggestions.length > 0 && { suggestions }),
             },
             null,
             2
@@ -238,8 +277,8 @@ async function deleteMemory(args: z.infer<typeof DeleteMemorySchema>) {
   try {
     const { id } = args;
 
-    const existed = await memoryStorage.delete(id);
-    if (!existed) {
+    const deleted = await memoryStorage.delete(id);
+    if (!deleted) {
       return {
         content: [
           {
@@ -293,7 +332,7 @@ async function deleteMemory(args: z.infer<typeof DeleteMemorySchema>) {
   }
 }
 
-// Register tools using the McpServer pattern
+// Register tools using the correct MCP server API
 server.tool(
   "store_memory",
   "Store a memory with optional metadata",
@@ -323,12 +362,16 @@ server.tool(
 
 server.tool(
   "search_memory",
-  "Search memories by content or metadata",
+  "Search memories with advanced options: exact/fuzzy search, suggestions, and filtering. Supports auto mode (exact first, fuzzy fallback), fuzzy tolerance, and search suggestions.",
   {
     query: z.string(),
     category: z.string().optional(),
     tags: z.array(z.string()).optional(),
     limit: z.number().optional(),
+    searchType: z.enum(["exact", "fuzzy", "auto"]).optional(),
+    fuzzyTolerance: z.number().optional(),
+    includeSuggestions: z.boolean().optional(),
+    maxSuggestions: z.number().optional(),
   },
   async (args) => {
     const validated = SearchMemorySchema.parse(args);
@@ -353,26 +396,13 @@ server.tool(
 );
 
 // Start the server
-(async () => {
-  try {
-    console.error("BeruMemorix MCP Server starting...");
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("BeruMemorix MCP Server running with 5 optimized tools");
+}
 
-    const transport = new StdioServerTransport();
-
-    // Ensure stdout is only used for JSON messages
-    const originalStdoutWrite = process.stdout.write.bind(process.stdout);
-    process.stdout.write = (chunk: any, encoding?: any, callback?: any) => {
-      // Only allow JSON messages to pass through
-      if (typeof chunk === "string" && !chunk.startsWith("{")) {
-        return true; // Silently skip non-JSON messages
-      }
-      return originalStdoutWrite(chunk, encoding, callback);
-    };
-
-    await server.connect(transport);
-    console.error("BeruMemorix MCP Server connected successfully!");
-  } catch (error) {
-    console.error("Failed to initialize BeruMemorix MCP server:", error);
-    process.exit(1);
-  }
-})();
+main().catch((error) => {
+  console.error("Server error:", error);
+  process.exit(1);
+});

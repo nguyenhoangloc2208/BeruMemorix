@@ -32,6 +32,9 @@ npm run test:mcp
 # Test file-based storage
 npm run test:storage
 
+# Test optimized 5-tool system
+npm run test:optimized
+
 # Validate complete MCP setup  
 npm run validate:mcp
 ```
@@ -73,6 +76,9 @@ npm run test:mcp
 # Test file-based storage persistence
 npm run test:storage
 
+# Test optimized 5-tool system
+npm run test:optimized
+
 # Validate complete MCP setup  
 npm run validate:mcp
 
@@ -82,13 +88,38 @@ npm run dev
 
 ## 🔧 Available MCP Tools
 
-BeruMemorix provides 5 memory management tools:
+BeruMemorix provides **5 optimized memory management tools**:
 
 1. **`store_memory`** - Store a new memory with metadata
 2. **`retrieve_memory`** - Retrieve a memory by ID  
-3. **`search_memory`** - Search memories by content/metadata
+3. **`search_memory`** - **Unified search** with exact/fuzzy/auto modes + suggestions
 4. **`get_memory_stats`** - Get memory usage statistics
 5. **`delete_memory`** - Delete a memory by ID
+
+### 🎯 Search Tool Features
+
+The unified `search_memory` tool combines all search capabilities:
+
+- **Exact Search** (fast, case-insensitive)
+- **Fuzzy Search** (typo-tolerant with Levenshtein distance)
+- **Auto Mode** (exact first, fuzzy fallback)
+- **Smart Suggestions** (when no results found)
+- **Advanced Filtering** (by category, tags, limits)
+- **Backward Compatibility** (works with legacy search calls)
+
+**Search Options:**
+```typescript
+{
+  query: string,              // Search query (required)
+  searchType?: "exact" | "fuzzy" | "auto",  // Search strategy
+  fuzzyTolerance?: number,    // 0-1, fuzzy matching tolerance
+  includeSuggestions?: boolean, // Generate suggestions if no results
+  maxSuggestions?: number,    // Max suggestions to return
+  category?: string,          // Filter by category
+  tags?: string[],           // Filter by tags
+  limit?: number             // Max results (default 10)
+}
+```
 
 ## 💾 Storage System
 
@@ -104,7 +135,7 @@ BeruMemorix provides 5 memory management tools:
 Once configured, you can use BeruMemorix directly in Cursor:
 
 - **"store memory: [content]"** - Save important information for later
-- **"search memory about [topic]"** - Find previously stored information  
+- **"search memory about [topic]"** - Find previously stored information with smart fuzzy matching
 - **"get memory stats"** - View memory usage statistics
 - **"retrieve memory [id]"** - Get specific memory by ID
 
@@ -113,8 +144,8 @@ Example:
 User: "store memory: Remember that I prefer TypeScript over JavaScript for new projects"
 AI: *Uses BeruMemorix to store this preference*
 
-User: "What are my coding preferences?"  
-AI: *Searches BeruMemorix and finds the stored preference*
+User: "search memory about TypeScrpt preferences"  # Note the typo
+AI: *Finds the stored preference using fuzzy search*
 ```
 
 ## 🐛 Troubleshooting
@@ -152,9 +183,11 @@ If BeruMemorix doesn't appear in Cursor:
 BeruMemorix/
 ├── src/
 │   ├── mcp/
-│   │   └── server.ts          # Main MCP server implementation
+│   │   └── server.ts          # Main MCP server (5 optimized tools)
 │   ├── services/
-│   │   └── memory-storage.ts  # File-based storage service
+│   │   ├── memory-storage.ts  # File-based storage service
+│   │   ├── enhanced-search.ts # Advanced search with fuzzy matching
+│   │   └── fuzzy-search.ts    # Levenshtein distance algorithm
 │   ├── types/
 │   │   └── memory.ts          # Memory type definitions
 │   └── utils/
@@ -164,6 +197,7 @@ BeruMemorix/
 ├── scripts/
 │   ├── test-mcp.ts           # MCP functionality tests
 │   ├── test-file-storage.ts  # Storage system tests
+│   ├── test-optimized-tools.ts # 5-tool system tests
 │   ├── validate-mcp.ts       # MCP setup validation
 │   └── update_cursor_config.sh # Cursor configuration script
 └── package.json              # Dependencies and scripts
@@ -181,6 +215,9 @@ npm test
 # Test storage system
 npm run test:storage
 
+# Test optimized tools
+npm run test:optimized
+
 # Type checking
 npm run type-check
 
@@ -193,17 +230,27 @@ npm run lint:fix
 
 ## 📊 Features
 
+- ✅ **5 Optimized Tools** - Reduced from 7 to 5 high-quality tools
+- ✅ **Unified Search** - Exact, fuzzy, auto modes in one tool
+- ✅ **Smart Suggestions** - Auto-complete when no results found
+- ✅ **Fuzzy Matching** - Levenshtein distance for typo tolerance
 - ✅ **File-based Storage** - Persistent JSON storage
 - ✅ **Memory Management** - Store, retrieve, search, delete
-- ✅ **Smart Search** - Content and tag-based searching  
+- ✅ **Advanced Filtering** - Content, tag, and category-based searching  
 - ✅ **Memory Metadata** - Categories, tags, timestamps
 - ✅ **Statistics** - Usage tracking and analytics
 - ✅ **MCP Integration** - Seamless IDE integration
 - ✅ **Restart Persistence** - Data survives application restarts
+- ✅ **Backward Compatibility** - Legacy search calls still work
 - 🔄 **Vector Search** - Coming soon
 - 🔄 **Database Integration** - PostgreSQL option available
 
 ## 🏗️ Architecture
+
+**Tool Optimization:**
+- **Before**: 7 tools with 3 overlapping search functions
+- **After**: 5 tools with 1 unified search tool containing all features
+- **Result**: Better UX, less confusion, no feature loss
 
 **Storage Options:**
 1. **Current: File-based JSON** - Fast, simple, persistent
@@ -213,6 +260,7 @@ npm run lint:fix
 **MCP Implementation:**
 - Standard JSON-RPC protocol
 - 5 core tools for memory management
+- Advanced search with fuzzy matching
 - Error handling and validation
 - Logging and debugging support
 

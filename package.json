@@ -34,6 +34,7 @@
     "mcp": "tsx src/mcp/server.ts",
     "test:mcp": "tsx scripts/test-mcp.ts",
     "test:storage": "tsx scripts/test-file-storage.ts",
+    "test:optimized": "tsx scripts/test-optimized-tools.ts",
     "validate:mcp": "tsx scripts/validate-mcp.ts",
     "mcp:check": "tsx scripts/check-mcp-status.ts"
   },
