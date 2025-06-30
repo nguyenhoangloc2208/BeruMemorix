@@ -57,7 +57,7 @@ async function testOptimizedTools() {
     // Test exact search
     console.log("\n  📍 Exact search for 'BeruMemorix':");
     const exactResult = await memoryStorage.searchEnhanced("BeruMemorix", {
-      maxResults: 10,
+      limit: 10,
     });
     console.log(
       `    Found ${exactResult.results.length} results (${exactResult.searchType})`
@@ -67,7 +67,7 @@ async function testOptimizedTools() {
     console.log("\n  🔍 Fuzzy search for 'Memorixx' (with typo):");
     const fuzzyResult = await memoryStorage.searchEnhanced("Memorixx", {
       fuzzyTolerance: 0.3,
-      maxResults: 10,
+      limit: 10,
     });
     console.log(
       `    Found ${fuzzyResult.results.length} results (${fuzzyResult.searchType})`
@@ -76,7 +76,7 @@ async function testOptimizedTools() {
     // Test auto search (exact first, fuzzy fallback)
     console.log("\n  🔄 Auto search for 'TypeScrpt' (with typo):");
     const autoResult = await memoryStorage.searchEnhanced("TypeScrpt", {
-      maxResults: 10,
+      limit: 10,
     });
     console.log(
       `    Found ${autoResult.results.length} results (${autoResult.searchType})`
@@ -86,7 +86,7 @@ async function testOptimizedTools() {
     console.log("\n  💡 Search with suggestions for 'nonexistent':");
     const noResultsSearch = await memoryStorage.searchEnhanced("nonexistent", {
       includeSuggestions: true,
-      maxResults: 10,
+      limit: 10,
     });
 
     if (noResultsSearch.results.length === 0) {
@@ -107,7 +107,7 @@ async function testOptimizedTools() {
     console.log("\n  🏷️ Search by category 'technical':");
     const categoryResult = await memoryStorage.searchEnhanced("TypeScript", {
       category: "technical",
-      maxResults: 10,
+      limit: 10,
     });
     console.log(
       `    Found ${categoryResult.results.length} results in 'technical' category`
@@ -117,7 +117,7 @@ async function testOptimizedTools() {
     console.log("\n  🔖 Search by tags ['search', 'fuzzy']:");
     const tagResult = await memoryStorage.searchEnhanced("search", {
       tags: ["search", "fuzzy"],
-      maxResults: 10,
+      limit: 10,
     });
     console.log(
       `    Found ${tagResult.results.length} results with specified tags`

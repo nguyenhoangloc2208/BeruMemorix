@@ -1,11 +1,15 @@
 /**
  * Enhanced Search Service for BeruMemorix
- * Integrates fuzzy search, suggestions, and advanced filtering
+ * Integrates fuzzy search, suggestions, analytics, and query optimization
  */
 
 import { FuzzySearchService } from "./fuzzy-search.js";
-import type { FuzzySearchOptions, FuzzySearchResult } from "./fuzzy-search.js";
+import { SearchAnalyticsService } from "./search-analytics.js";
+import { QueryOptimizerService } from "./query-optimizer.js";
+import type { FuzzySearchOptions } from "./fuzzy-search.js";
 import type { MemoryItem } from "./memory-storage.js";
+// Analytics types imported through service
+import type { QueryOptimization } from "./query-optimizer.js";
 
 export interface EnhancedSearchOptions {
   // Fuzzy search options
@@ -24,6 +28,11 @@ export interface EnhancedSearchOptions {
   minScore: number; // Minimum score threshold (default 0.1)
   highlightMatches: boolean; // Include match highlighting info (default false)
   includeSuggestions: boolean; // Include suggestions when no results (default true)
+
+  // Analytics and optimization options
+  enableAnalytics: boolean; // Record search analytics (default true)
+  autoOptimizeQuery: boolean; // Auto-optimize poor queries (default true)
+  tryQueryVariations: boolean; // Try query variations on zero results (default true)
 }
 
 export interface EnhancedSearchResult {
@@ -43,15 +52,22 @@ export interface EnhancedSearchResult {
 export interface SearchResponse {
   success: boolean;
   query: string;
+  optimizedQuery?: string; // If query was optimized
   results: EnhancedSearchResult[];
   count: number;
   suggestions?: string[]; // Suggestions if no results
   executionTime: number; // Search time in ms
-  searchType: "exact" | "fuzzy" | "mixed";
+  searchType: "exact" | "fuzzy" | "mixed" | "optimized";
+  analytics?: {
+    queryQuality: number; // 0-1 score
+    optimization?: QueryOptimization;
+  };
 }
 
 export class EnhancedSearchService {
   private fuzzySearch = new FuzzySearchService();
+  private analytics = new SearchAnalyticsService();
+  private queryOptimizer = new QueryOptimizerService();
 
   private readonly defaultOptions: EnhancedSearchOptions = {
     fuzzyTolerance: 0.3,
@@ -65,7 +81,24 @@ export class EnhancedSearchService {
     minScore: 0.1,
     highlightMatches: false,
     includeSuggestions: true,
+    enableAnalytics: true,
+    autoOptimizeQuery: true,
+    tryQueryVariations: true,
   };
+
+  /**
+   * Get analytics service for external access
+   */
+  getAnalytics(): SearchAnalyticsService {
+    return this.analytics;
+  }
+
+  /**
+   * Get query optimizer service for external access
+   */
+  getQueryOptimizer(): QueryOptimizerService {
+    return this.queryOptimizer;
+  }
 
   /**
    * Normalize and preprocess search query
@@ -215,12 +248,74 @@ export class EnhancedSearchService {
         score: result.score,
         matchDetails: [
           {
-            field: "mixed",
+            field: "fuzzy_match",
             matches: result.matches,
             score: result.score,
           },
         ],
       }));
+  }
+
+  /**
+   * Try multiple query variations to improve results
+   */
+  private async searchWithVariations(
+    originalQuery: string,
+    memories: MemoryItem[],
+    options: EnhancedSearchOptions
+  ): Promise<{
+    results: EnhancedSearchResult[];
+    bestQuery: string;
+    searchType: string;
+  }> {
+    // Try original query first
+    let bestResults = this.exactSearch(originalQuery, memories, options);
+    let bestQuery = originalQuery;
+    let searchType = "exact";
+
+    if (bestResults.length === 0) {
+      // Try fuzzy search
+      bestResults = this.fuzzySearchMemories(originalQuery, memories, options);
+      searchType = "fuzzy";
+    }
+
+    // If still no results and variations are enabled, try optimized queries
+    if (bestResults.length === 0 && options.tryQueryVariations) {
+      const variations = this.queryOptimizer.generateQueryVariations(
+        originalQuery,
+        5
+      );
+
+      for (const variation of variations) {
+        if (variation === originalQuery) continue; // Skip original
+
+        // Try exact search with variation
+        const variationResults = this.exactSearch(variation, memories, options);
+        if (variationResults.length > 0) {
+          bestResults = variationResults;
+          bestQuery = variation;
+          searchType = "optimized";
+          break;
+        }
+
+        // Try fuzzy search with variation
+        const fuzzyVariationResults = this.fuzzySearchMemories(
+          variation,
+          memories,
+          options
+        );
+        if (
+          fuzzyVariationResults.length > 0 &&
+          fuzzyVariationResults.length > bestResults.length
+        ) {
+          bestResults = fuzzyVariationResults;
+          bestQuery = variation;
+          searchType = "optimized";
+        }
+      }
+    }
+
+    return { results: bestResults, bestQuery, searchType };
   }
 
   /**
@@ -266,7 +361,7 @@ export class EnhancedSearchService {
   }
 
   /**
-   * Main enhanced search method
+   * Main enhanced search method with analytics and optimization
    */
   async search(
     query: string,
@@ -278,7 +373,7 @@ export class EnhancedSearchService {
     const normalizedQuery = this.normalizeQuery(query);
 
     if (!normalizedQuery) {
-      return {
+      const response: SearchResponse = {
         success: false,
         query,
         results: [],
@@ -286,49 +381,93 @@ export class EnhancedSearchService {
         executionTime: Date.now() - startTime,
         searchType: "exact",
       };
+
+      // Record analytics for empty query
+      if (opts.enableAnalytics) {
+        this.analytics.recordSearch({
+          query,
+          searchType: "exact",
+          resultsCount: 0,
+          executionTime: response.executionTime,
+        });
+      }
+
+      return response;
     }
 
-    let results: EnhancedSearchResult[] = [];
-    let searchType: "exact" | "fuzzy" | "mixed" = "exact";
+    // Analyze query quality
+    const queryQuality = this.queryOptimizer.scoreQueryQuality(normalizedQuery);
+    let optimization: QueryOptimization | undefined;
+    let finalQuery = normalizedQuery;
 
-    // Try exact search first
-    const exactResults = this.exactSearch(normalizedQuery, memories, opts);
-
-    if (exactResults.length > 0) {
-      results = exactResults;
-      searchType = "exact";
-    } else {
-      // Fall back to fuzzy search
-      const fuzzyResults = this.fuzzySearchMemories(
-        normalizedQuery,
-        memories,
-        opts
-      );
-      results = fuzzyResults;
-      searchType = "fuzzy";
+    // Auto-optimize poor quality queries
+    if (opts.autoOptimizeQuery && queryQuality < 0.5) {
+      optimization = this.queryOptimizer.optimizeQuery(normalizedQuery);
+      if (optimization.confidence > 0.6) {
+        finalQuery = optimization.optimizedQuery;
+      }
     }
+
+    // Perform search with potential variations
+    const { results, bestQuery, searchType } = await this.searchWithVariations(
+      finalQuery,
+      memories,
+      opts
+    );
 
     // Sort by score descending
     results.sort((a, b) => b.score - a.score);
 
     // Apply max results limit
-    results = results.slice(0, opts.maxResults);
+    const limitedResults = results.slice(0, opts.maxResults);
 
     // Generate suggestions if no results and enabled
     let suggestions: string[] | undefined;
-    if (results.length === 0 && opts.includeSuggestions) {
+    if (limitedResults.length === 0 && opts.includeSuggestions) {
       suggestions = this.generateSuggestions(normalizedQuery, memories);
+
+      // Also try suggestions from zero-result analysis
+      const zeroResultSuggestions = this.analytics.analyzeZeroResultQueries();
+      if (zeroResultSuggestions.length > 0) {
+        const additionalSuggestions = zeroResultSuggestions
+          .slice(0, 3)
+          .map((s) => s.optimizedQuery);
+        suggestions = [...(suggestions || []), ...additionalSuggestions];
+        suggestions = [...new Set(suggestions)].slice(0, 5); // Remove duplicates
+      }
     }
 
-    return {
+    const executionTime = Date.now() - startTime;
+
+    // Record analytics
+    if (opts.enableAnalytics) {
+      this.analytics.recordSearch({
+        query: normalizedQuery,
+        searchType: searchType as "exact" | "fuzzy" | "mixed",
+        resultsCount: limitedResults.length,
+        executionTime,
+        ...(suggestions && { suggestions }),
+      });
+    }
+
+    const response: SearchResponse = {
       success: true,
       query: normalizedQuery,
-      results,
-      count: results.length,
+      ...(bestQuery !== normalizedQuery && { optimizedQuery: bestQuery }),
+      results: limitedResults,
+      count: limitedResults.length,
       ...(suggestions && { suggestions }),
-      executionTime: Date.now() - startTime,
-      searchType,
+      executionTime,
+      searchType: searchType as "exact" | "fuzzy" | "mixed" | "optimized",
+      ...(opts.enableAnalytics && {
+        analytics: {
+          queryQuality,
+          ...(optimization && { optimization }),
+        },
+      }),
     };
+
+    return response;
   }
 
   /**
@@ -354,10 +493,56 @@ export class EnhancedSearchService {
   ): Promise<{ [query: string]: SearchResponse }> {
     const results: { [query: string]: SearchResponse } = {};
 
-    for (const query of queries) {
-      results[query] = await this.search(query, memories, options);
-    }
+    // Process queries in parallel for better performance
+    const searchPromises = queries.map(async (query) => {
+      const result = await this.search(query, memories, options);
+      return { query, result };
+    });
+
+    const resolvedResults = await Promise.all(searchPromises);
+
+    resolvedResults.forEach(({ query, result }) => {
+      results[query] = result;
+    });
 
     return results;
+  }
+
+  /**
+   * Get search performance metrics
+   */
+  getSearchMetrics(timeRange?: { start: Date; end: Date }) {
+    return this.analytics.getMetrics(timeRange);
+  }
+
+  /**
+   * Get search insights and recommendations
+   */
+  getSearchInsights() {
+    return this.analytics.getSearchInsights();
+  }
+
+  /**
+   * Record user action for analytics
+   */
+  recordUserAction(
+    query: string,
+    action: "clicked_result" | "refined_query" | "abandoned" | "used_suggestion"
+  ): void {
+    this.analytics.recordUserAction(query, action);
+  }
+
+  /**
+   * Export search analytics data
+   */
+  exportAnalytics(format: "json" | "csv" = "json"): string {
+    return this.analytics.exportData(format);
+  }
+
+  /**
+   * Clear old analytics data
+   */
+  cleanupAnalytics(olderThanDays = 30): number {
+    return this.analytics.cleanup(olderThanDays);
   }
 }

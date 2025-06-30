@@ -209,7 +209,7 @@ async function testMemoryStorageIntegration() {
   // Test 2: Enhanced search method
   console.log("\nTest 2: Enhanced search method");
   const enhancedResults = await memoryStorage.searchEnhanced("AI", {
-    maxResults: 3,
+    limit: 3,
   });
   console.log(
     `  Query: "AI" -> ${enhancedResults.count} results (${enhancedResults.searchType})`
@@ -299,7 +299,7 @@ async function main() {
 
   try {
     // Setup
-    const ids = await testSetup();
+    await testSetup();
 
     // Run tests
     await testFuzzySearchService();

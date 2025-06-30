@@ -402,7 +402,13 @@ async function main() {
   console.error("BeruMemorix MCP Server running with 5 optimized tools");
 }
 
-main().catch((error) => {
-  console.error("Server error:", error);
-  process.exit(1);
-});
+// Export main function for use by other modules
+export { main };
+
+// Start the server if this module is run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    console.error("Server error:", error);
+    process.exit(1);
+  });
+}

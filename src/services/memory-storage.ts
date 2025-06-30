@@ -144,52 +144,135 @@ export class MemoryStorage {
       limit?: number;
     } = {}
   ): Promise<MemoryItem[]> {
-    const enhancedResults = await this.searchEnhanced(query, {
-      ...options,
-      maxResults: options.limit || 10,
-    });
+    const enhancedResults = await this.searchEnhanced(query, options);
 
     return enhancedResults.results.map((result) => result.memory);
   }
 
-  // Enhanced search with fuzzy matching and suggestions
+  /**
+   * Enhanced search with analytics and optimization
+   */
   async searchEnhanced(
     query: string,
-    options: Partial<EnhancedSearchOptions> & {
+    options: {
       category?: string;
       tags?: string[];
       limit?: number;
+      searchType?: "exact" | "fuzzy" | "auto";
+      fuzzyTolerance?: number;
+      includeSuggestions?: boolean;
+      enableAnalytics?: boolean;
+      autoOptimizeQuery?: boolean;
+      tryQueryVariations?: boolean;
     } = {}
   ): Promise<SearchResponse> {
-    await this.loadFromFile();
+    const memories = await this.getAll();
 
-    const allMemories = Array.from(this.memories.values());
+    // Apply pre-filters
+    let filteredMemories = memories;
 
-    // Apply legacy filters first if provided
-    let filteredMemories = allMemories;
-
-    if (options.category || options.tags) {
-      filteredMemories = allMemories.filter((memory) => {
-        const categoryMatch =
-          !options.category || memory.metadata.category === options.category;
-        const tagsMatch =
-          !options.tags ||
-          options.tags.some((tag) => memory.metadata.tags?.includes(tag));
-        return categoryMatch && tagsMatch;
-      });
+    if (options.category) {
+      filteredMemories = filteredMemories.filter(
+        (memory) => memory.metadata.category === options.category
+      );
     }
 
-    // Convert limit to maxResults for enhanced search
-    const enhancedOptions: Partial<EnhancedSearchOptions> = {
-      ...options,
-      maxResults: options.limit || options.maxResults || 10,
+    if (options.tags && options.tags.length > 0) {
+      filteredMemories = filteredMemories.filter((memory) =>
+        options.tags!.some((tag) => memory.metadata.tags?.includes(tag))
+      );
+    }
+
+    // Configure enhanced search options
+    const searchOptions: Partial<EnhancedSearchOptions> = {
+      maxResults: options.limit || 10,
+      fuzzyTolerance: options.fuzzyTolerance ?? 0.3,
+      includeSuggestions: options.includeSuggestions ?? true,
+      enableAnalytics: options.enableAnalytics ?? true,
+      autoOptimizeQuery: options.autoOptimizeQuery ?? true,
+      tryQueryVariations: options.tryQueryVariations ?? true,
     };
+
+    // Handle search type
+    if (options.searchType === "auto") {
+      // Auto mode: try exact first, fallback to fuzzy
+      searchOptions.tryQueryVariations = true;
+    } else if (options.searchType === "fuzzy") {
+      // Force fuzzy search with lower threshold
+      searchOptions.fuzzyTolerance = options.fuzzyTolerance ?? 0.5;
+      searchOptions.tryQueryVariations = false;
+    }
 
     return await this.enhancedSearchService.search(
       query,
       filteredMemories,
-      enhancedOptions
+      searchOptions
     );
+  }
+
+  /**
+   * Get search analytics and insights
+   */
+  getSearchAnalytics(timeRange?: { start: Date; end: Date }) {
+    return {
+      metrics: this.enhancedSearchService.getSearchMetrics(timeRange),
+      insights: this.enhancedSearchService.getSearchInsights(),
+    };
+  }
+
+  /**
+   * Record user interaction for analytics
+   */
+  recordUserAction(
+    query: string,
+    action: "clicked_result" | "refined_query" | "abandoned" | "used_suggestion"
+  ): void {
+    this.enhancedSearchService.recordUserAction(query, action);
+  }
+
+  /**
+   * Export search analytics data
+   */
+  exportSearchAnalytics(format: "json" | "csv" = "json"): string {
+    return this.enhancedSearchService.exportAnalytics(format);
+  }
+
+  /**
+   * Optimize a query using the query optimizer
+   */
+  optimizeQuery(query: string) {
+    return this.enhancedSearchService.getQueryOptimizer().optimizeQuery(query);
+  }
+
+  /**
+   * Generate query variations for better results
+   */
+  generateQueryVariations(query: string, maxVariations = 5): string[] {
+    return this.enhancedSearchService
+      .getQueryOptimizer()
+      .generateQueryVariations(query, maxVariations);
+  }
+
+  /**
+   * Get auto-complete suggestions
+   */
+  async getAutoCompleteSuggestions(
+    partialQuery: string,
+    maxSuggestions = 5
+  ): Promise<string[]> {
+    const memories = await this.getAll();
+    return await this.enhancedSearchService.searchWithAutoComplete(
+      partialQuery,
+      memories,
+      maxSuggestions
+    );
+  }
+
+  /**
+   * Clean up old analytics data
+   */
+  cleanupSearchAnalytics(olderThanDays = 30): number {
+    return this.enhancedSearchService.cleanupAnalytics(olderThanDays);
   }
 
   // Get all memories
