@@ -30,7 +30,7 @@ async function runSimpleTest() {
       "This is a test of enhanced multi-modal memory system with image and video processing capabilities",
       "text"
     );
-    console.log(`✅ Text stored: ${textResult?.id || 'Failed'}`);
+    console.log(`✅ Text stored: ${textResult?.id || "Failed"}`);
 
     // Test 2: Image content (simulated)
     console.log("\n🖼️  Test 2: Image Content Processing");
@@ -38,7 +38,7 @@ async function runSimpleTest() {
       "/path/to/test/sample-image.jpg",
       "image"
     );
-    console.log(`✅ Image processed: ${imageResult?.id || 'Failed'}`);
+    console.log(`✅ Image processed: ${imageResult?.id || "Failed"}`);
 
     // Test 3: Video content (simulated)
     console.log("\n🎥 Test 3: Video Content Processing");
@@ -46,7 +46,7 @@ async function runSimpleTest() {
       "/path/to/test/sample-video.mp4",
       "video"
     );
-    console.log(`✅ Video processed: ${videoResult?.id || 'Failed'}`);
+    console.log(`✅ Video processed: ${videoResult?.id || "Failed"}`);
 
     // Test 4: PDF content (simulated)
     console.log("\n📄 Test 4: PDF Document Processing");
@@ -54,7 +54,7 @@ async function runSimpleTest() {
       "/path/to/test/document.pdf",
       "pdf"
     );
-    console.log(`✅ PDF processed: ${pdfResult?.id || 'Failed'}`);
+    console.log(`✅ PDF processed: ${pdfResult?.id || "Failed"}`);
 
     // Test 5: Office content (simulated)
     console.log("\n📊 Test 5: Office Document Processing");
@@ -62,7 +62,7 @@ async function runSimpleTest() {
       "/path/to/test/presentation.pptx",
       "office"
     );
-    console.log(`✅ Office doc processed: ${officeResult?.id || 'Failed'}`);
+    console.log(`✅ Office doc processed: ${officeResult?.id || "Failed"}`);
 
     // Test 6: Archive content (simulated)
     console.log("\n📦 Test 6: Archive Processing");
@@ -70,11 +70,13 @@ async function runSimpleTest() {
       "/path/to/test/archive.zip",
       "archive"
     );
-    console.log(`✅ Archive processed: ${archiveResult?.id || 'Failed'}`);
+    console.log(`✅ Archive processed: ${archiveResult?.id || "Failed"}`);
 
     // Test 7: Search across all content
     console.log("\n🔍 Test 7: Cross-Modal Search");
-    const searchResults = await multiModalSystem.searchContent("test processing");
+    const searchResults = await multiModalSystem.searchContent(
+      "test processing"
+    );
     console.log(`✅ Search found ${searchResults.length} results`);
 
     // Test 8: Similarity calculation
@@ -88,18 +90,27 @@ async function runSimpleTest() {
     }
 
     // Summary
-    const allResults = [textResult, imageResult, videoResult, pdfResult, officeResult, archiveResult];
-    const successCount = allResults.filter(r => r?.id).length;
-    
+    const allResults = [
+      textResult,
+      imageResult,
+      videoResult,
+      pdfResult,
+      officeResult,
+      archiveResult,
+    ];
+    const successCount = allResults.filter((r) => r?.id).length;
+
     console.log("\n" + "=".repeat(61));
     console.log("📈 WEEK 11-12 SIMPLE TEST SUMMARY");
     console.log("=".repeat(61));
     console.log(`✅ Successful operations: ${successCount}/6`);
     console.log(`🔍 Search results: ${searchResults.length}`);
     console.log(`📊 Content types supported: ${successCount}`);
-    
+
     if (successCount >= 4) {
-      console.log("\n🎉 Week 11-12 Enhanced Multi-modal Memory System is working!");
+      console.log(
+        "\n🎉 Week 11-12 Enhanced Multi-modal Memory System is working!"
+      );
       console.log("🚀 Core functionality verified successfully");
     } else {
       console.log("\n⚠️  Some features need attention");
@@ -112,7 +123,6 @@ async function runSimpleTest() {
     console.log("   📦 Archive File Processing");
     console.log("   🔍 Cross-Modal Search & Similarity");
     console.log("   ⚡ Performance Optimizations");
-
   } catch (error) {
     console.error("❌ Test failed:", error.message);
     console.error("Stack:", error.stack);
