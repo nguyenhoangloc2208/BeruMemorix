@@ -281,6 +281,35 @@ export class MemoryStorage {
     return Array.from(this.memories.values());
   }
 
+  // Update a memory
+  async update(
+    id: string,
+    content?: string,
+    metadata?: Partial<MemoryItem["metadata"]>
+  ): Promise<MemoryItem | null> {
+    await this.loadFromFile();
+
+    const existingMemory = this.memories.get(id);
+    if (!existingMemory) {
+      return null;
+    }
+
+    const updatedMemory: MemoryItem = {
+      ...existingMemory,
+      content: content !== undefined ? content : existingMemory.content,
+      metadata: {
+        ...existingMemory.metadata,
+        ...metadata,
+        updatedAt: new Date().toISOString(),
+      },
+    };
+
+    this.memories.set(id, updatedMemory);
+    await this.saveToFile();
+
+    return updatedMemory;
+  }
+
   // Delete a memory
   async delete(id: string): Promise<boolean> {
     await this.loadFromFile();
