@@ -1,0 +1,135 @@
+{
+  "primary": {
+    "id": "mm_058x1yd50mejid0mq",
+    "type": "text",
+    "originalContent": "This is a comprehensive guide to machine learning algorithms and their applications in modern AI systems.",
+    "processedContent": "this is a comprehensive guide to machine learning algorithms and their applications in modern ai systems.",
+    "features": {
+      "keywords": [
+        "this",
+        "comprehensive",
+        "guide",
+        "machine",
+        "learning",
+        "algorithms",
+        "and",
+        "their",
+        "applications",
+        "modern"
+      ],
+      "entities": [],
+      "topics": [
+        {
+          "name": "education",
+          "weight": 0.0625
+        }
+      ],
+      "sentiment": {
+        "score": 0,
+        "label": "neutral"
+      },
+      "language": "unknown",
+      "complexity": 1
+    },
+    "metadata": {
+      "language": "en",
+      "topic": "machine_learning"
+    },
+    "searchableText": "This is a comprehensive guide to machine learning algorithms and their applications in modern AI systems.",
+    "processedAt": "2025-08-20T05:04:20.594Z"
+  },
+  "attachments": [
+    {
+      "id": "code_example_1",
+      "type": "code",
+      "originalContent": "\nfunction trainModel(data, labels) {\n  const model = new NeuralNetwork();\n  model.train(data, labels);\n  return model;\n}\n        ",
+      "processedContent": "\nfunction trainModel(data, labels) {\n  const model = new NeuralNetwork();\n  model.train(data, labels);\n  return model;\n}\n        ",
+      "features": {
+        "keywords": [
+          "function trainModel",
+          "const model"
+        ],
+        "entities": [],
+        "topics": [
+          {
+            "name": "javascript",
+            "weight": 1
+          }
+        ],
+        "language": "javascript",
+        "complexity": 0.07,
+        "structure": {
+          "language": "javascript",
+          "lines": 7,
+          "functions": 1,
+          "classes": 0,
+          "complexity": 0.07
+        }
+      },
+      "metadata": {
+        "language": "javascript",
+        "framework": "neural_network"
+      },
+      "searchableText": "",
+      "processedAt": "2025-08-20T05:04:20.595Z"
+    },
+    {
+      "id": "doc_link_1",
+      "type": "link",
+      "originalContent": "https://github.com/tensorflow/tensorflow",
+      "processedContent": "https://github.com/tensorflow/tensorflow",
+      "features": {
+        "keywords": [
+          "github.com",
+          "tensorflow",
+          "tensorflow"
+        ],
+        "entities": [
+          {
+            "name": "github.com",
+            "type": "domain",
+            "confidence": 1
+          }
+        ],
+        "topics": [
+          {
+            "name": "code",
+            "weight": 0.8
+          }
+        ],
+        "structure": {
+          "domain": "github.com",
+          "path": "/tensorflow/tensorflow",
+          "protocol": "https"
+        }
+      },
+      "metadata": {
+        "domain": "github.com",
+        "category": "documentation"
+      },
+      "searchableText": "github.com tensorflow tensorflow",
+      "processedAt": "2025-08-20T05:04:20.595Z"
+    }
+  ],
+  "relationships": [
+    {
+      "fromId": "main",
+      "toId": "code_example_1",
+      "type": "contains",
+      "strength": 0.9
+    },
+    {
+      "fromId": "main",
+      "toId": "doc_link_1",
+      "type": "references",
+      "strength": 0.7
+    }
+  ],
+  "context": {
+    "userId": "test_user",
+    "sessionId": "multimodal_session",
+    "conversationId": "mm_conv_001",
+    "timestamp": "2025-08-20T05:04:20.594Z"
+  },
+  "createdAt": "2025-08-20T05:04:20.595Z"
+}

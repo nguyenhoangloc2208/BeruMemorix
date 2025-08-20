@@ -1,0 +1,81 @@
+{
+  "primary": {
+    "id": "mm_hje8nkr52mejid0mv",
+    "type": "text",
+    "originalContent": "Neural network architecture for image classification with convolutional layers",
+    "processedContent": "neural network architecture for image classification with convolutional layers",
+    "features": {
+      "keywords": [
+        "neural",
+        "network",
+        "architecture",
+        "for",
+        "image",
+        "classification",
+        "with",
+        "convolutional",
+        "layers"
+      ],
+      "entities": [],
+      "topics": [],
+      "sentiment": {
+        "score": 0,
+        "label": "neutral"
+      },
+      "language": "unknown",
+      "complexity": 1
+    },
+    "metadata": {
+      "topic": "cnn",
+      "complexity": "advanced"
+    },
+    "searchableText": "Neural network architecture for image classification with convolutional layers",
+    "processedAt": "2025-08-20T05:04:20.599Z"
+  },
+  "attachments": [
+    {
+      "id": "cnn_code",
+      "type": "code",
+      "originalContent": "model = Sequential([Conv2D(32, 3), MaxPool2D(), Dense(128), Dense(10)])",
+      "processedContent": "model = Sequential([Conv2D(32, 3), MaxPool2D(), Dense(128), Dense(10)])",
+      "features": {
+        "keywords": [],
+        "entities": [],
+        "topics": [
+          {
+            "name": "unknown",
+            "weight": 1
+          }
+        ],
+        "language": "unknown",
+        "complexity": 0.01,
+        "structure": {
+          "language": "unknown",
+          "lines": 1,
+          "functions": 0,
+          "classes": 0,
+          "complexity": 0.01
+        }
+      },
+      "metadata": {
+        "language": "python",
+        "framework": "tensorflow"
+      },
+      "searchableText": "",
+      "processedAt": "2025-08-20T05:04:20.600Z"
+    }
+  ],
+  "relationships": [],
+  "context": {
+    "userId": "integration_user",
+    "sessionId": "integration_session",
+    "conversationId": "integration_conv_001",
+    "timestamp": "2025-08-20T05:04:20.599Z",
+    "priorities": [
+      "learning",
+      "optimization",
+      "analysis"
+    ]
+  },
+  "createdAt": "2025-08-20T05:04:20.600Z"
+}

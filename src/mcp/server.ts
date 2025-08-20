@@ -26,7 +26,10 @@ const UpdateMemorySchema = z.object({
   title: z.string().optional(),
   tags: z.array(z.string()).optional(),
   category: z.string().optional(),
-  operation: z.enum(["retrieve", "update", "merge", "consolidate"]).optional().default("retrieve"),
+  operation: z
+    .enum(["retrieve", "update", "merge", "consolidate"])
+    .optional()
+    .default("retrieve"),
 });
 
 // Enhanced unified search schema with all features
@@ -148,8 +151,12 @@ async function updateMemory(args: z.infer<typeof UpdateMemorySchema>) {
         if (tags !== undefined) updateData.tags = tags;
         if (category !== undefined) updateData.category = category;
 
-        const updatedMemory = await memoryStorage.update(id, content, updateData);
-        
+        const updatedMemory = await memoryStorage.update(
+          id,
+          content,
+          updateData
+        );
+
         return {
           content: [
             {
@@ -171,35 +178,50 @@ async function updateMemory(args: z.infer<typeof UpdateMemorySchema>) {
       case "merge":
         // Find similar memories and suggest merge candidates
         const allMemoriesForMerge = await memoryStorage.getAll();
-        const similarMemories = await findSimilarMemories(existingMemory, allMemoriesForMerge);
-        
+        const similarMemories = await findSimilarMemories(
+          existingMemory,
+          allMemoriesForMerge
+        );
+
         if (similarMemories.length > 0) {
           // Auto-merge with most similar memory
           const mergeCandidate = similarMemories[0];
           if (!mergeCandidate) {
             throw new Error("Merge candidate is undefined");
           }
-          
+
           const mergedContent = `${existingMemory.content}\n\n[MERGED FROM ${mergeCandidate.id}]: ${mergeCandidate.content}`;
-          const mergedTags = [...new Set([...(existingMemory.metadata.tags || []), ...(mergeCandidate.metadata.tags || [])])];
-          
+          const mergedTags = [
+            ...new Set([
+              ...(existingMemory.metadata.tags || []),
+              ...(mergeCandidate.metadata.tags || []),
+            ]),
+          ];
+
           const updateMetadata: Partial<MemoryItem["metadata"]> = {
             tags: mergedTags,
           };
-          const mergedTitle = existingMemory.metadata.title || mergeCandidate.metadata.title;
+          const mergedTitle =
+            existingMemory.metadata.title || mergeCandidate.metadata.title;
           if (mergedTitle) {
             updateMetadata.title = mergedTitle;
           }
-          const mergedCategory = existingMemory.metadata.category || mergeCandidate.metadata.category;
+          const mergedCategory =
+            existingMemory.metadata.category ||
+            mergeCandidate.metadata.category;
           if (mergedCategory) {
             updateMetadata.category = mergedCategory;
           }
-          
-          const mergedMemory = await memoryStorage.update(id, mergedContent, updateMetadata);
-          
+
+          const mergedMemory = await memoryStorage.update(
+            id,
+            mergedContent,
+            updateMetadata
+          );
+
           // Delete the merged memory
           await memoryStorage.delete(mergeCandidate.id);
-          
+
           return {
             content: [
               {
@@ -241,9 +263,15 @@ async function updateMemory(args: z.infer<typeof UpdateMemorySchema>) {
       case "consolidate":
         // Consolidate related memories by topic/category
         const allMemoriesForConsolidate = await memoryStorage.getAll();
-        const relatedMemories = await findRelatedMemories(existingMemory, allMemoriesForConsolidate);
-        const consolidationSummary = generateConsolidationSummary(existingMemory, relatedMemories);
-        
+        const relatedMemories = await findRelatedMemories(
+          existingMemory,
+          allMemoriesForConsolidate
+        );
+        const consolidationSummary = generateConsolidationSummary(
+          existingMemory,
+          relatedMemories
+        );
+
         const consolidateUpdateMetadata: Partial<MemoryItem["metadata"]> = {
           title: consolidationSummary.title,
           tags: consolidationSummary.tags,
@@ -251,9 +279,13 @@ async function updateMemory(args: z.infer<typeof UpdateMemorySchema>) {
         if (existingMemory.metadata.category) {
           consolidateUpdateMetadata.category = existingMemory.metadata.category;
         }
-        
-        const consolidatedMemory = await memoryStorage.update(id, consolidationSummary.content, consolidateUpdateMetadata);
-        
+
+        const consolidatedMemory = await memoryStorage.update(
+          id,
+          consolidationSummary.content,
+          consolidateUpdateMetadata
+        );
+
         return {
           content: [
             {
@@ -297,84 +329,104 @@ async function updateMemory(args: z.infer<typeof UpdateMemorySchema>) {
 }
 
 // Helper function to find similar memories
-async function findSimilarMemories(targetMemory: MemoryItem, allMemories: MemoryItem[], threshold: number = 0.7): Promise<MemoryItem[]> {
+async function findSimilarMemories(
+  targetMemory: MemoryItem,
+  allMemories: MemoryItem[],
+  threshold: number = 0.7
+): Promise<MemoryItem[]> {
   const targetWords = new Set(targetMemory.content.toLowerCase().split(/\s+/));
   const similar: Array<{ memory: MemoryItem; similarity: number }> = [];
-  
+
   for (const memory of allMemories) {
     if (memory.id === targetMemory.id) continue;
-    
+
     const memoryWords = new Set(memory.content.toLowerCase().split(/\s+/));
-    const intersection = new Set([...targetWords].filter(x => memoryWords.has(x)));
+    const intersection = new Set(
+      [...targetWords].filter((x) => memoryWords.has(x))
+    );
     const union = new Set([...targetWords, ...memoryWords]);
     const similarity = intersection.size / union.size;
-    
+
     if (similarity >= threshold) {
       similar.push({ memory, similarity });
     }
   }
-  
+
   return similar
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, 3)
-    .map(item => item.memory);
+    .map((item) => item.memory);
 }
 
 // Helper function to find related memories by category/tags
-async function findRelatedMemories(targetMemory: MemoryItem, allMemories: MemoryItem[]): Promise<MemoryItem[]> {
+async function findRelatedMemories(
+  targetMemory: MemoryItem,
+  allMemories: MemoryItem[]
+): Promise<MemoryItem[]> {
   const related: MemoryItem[] = [];
-  
+
   for (const memory of allMemories) {
     if (memory.id === targetMemory.id) continue;
-    
+
     // Check category match
-    if (memory.metadata.category && targetMemory.metadata.category && 
-        memory.metadata.category === targetMemory.metadata.category) {
+    if (
+      memory.metadata.category &&
+      targetMemory.metadata.category &&
+      memory.metadata.category === targetMemory.metadata.category
+    ) {
       related.push(memory);
       continue;
     }
-    
+
     // Check tag overlap
     const targetTags = new Set(targetMemory.metadata.tags || []);
     const memoryTags = new Set(memory.metadata.tags || []);
-    const tagOverlap = [...targetTags].filter(tag => memoryTags.has(tag));
-    
+    const tagOverlap = [...targetTags].filter((tag) => memoryTags.has(tag));
+
     if (tagOverlap.length >= 2) {
       related.push(memory);
     }
   }
-  
+
   return related.slice(0, 5); // Limit to 5 related memories
 }
 
 // Helper function to generate consolidation summary
-function generateConsolidationSummary(mainMemory: MemoryItem, relatedMemories: MemoryItem[]): {
+function generateConsolidationSummary(
+  mainMemory: MemoryItem,
+  relatedMemories: MemoryItem[]
+): {
   content: string;
   title: string;
   tags: string[];
 } {
   const allTags = new Set(mainMemory.metadata.tags || []);
-  relatedMemories.forEach(mem => {
-    (mem.metadata.tags || []).forEach(tag => allTags.add(tag));
+  relatedMemories.forEach((mem) => {
+    (mem.metadata.tags || []).forEach((tag) => allTags.add(tag));
   });
-  
+
   const consolidatedContent = [
-    `# ${mainMemory.metadata.title || 'Consolidated Memory'}`,
-    '',
-    '## Main Content:',
+    `# ${mainMemory.metadata.title || "Consolidated Memory"}`,
+    "",
+    "## Main Content:",
     mainMemory.content,
-    '',
-    '## Related Information:',
-    ...relatedMemories.map((mem, idx) => 
-      `### ${idx + 1}. ${mem.metadata.title || `Related Memory ${idx + 1}`}\n${mem.content}`
+    "",
+    "## Related Information:",
+    ...relatedMemories.map(
+      (mem, idx) =>
+        `### ${idx + 1}. ${
+          mem.metadata.title || `Related Memory ${idx + 1}`
+        }\n${mem.content}`
     ),
-    '',
-    `## Summary: Consolidated from ${relatedMemories.length + 1} related memories`,
-  ].join('\n');
-  
+    "",
+    `## Summary: Consolidated from ${
+      relatedMemories.length + 1
+    } related memories`,
+  ].join("\n");
+
   return {
     content: consolidatedContent,
-    title: `Consolidated: ${mainMemory.metadata.title || 'Memory'}`,
+    title: `Consolidated: ${mainMemory.metadata.title || "Memory"}`,
     tags: Array.from(allTags),
   };
 }
@@ -586,7 +638,9 @@ server.tool(
     title: z.string().optional(),
     tags: z.array(z.string()).optional(),
     category: z.string().optional(),
-    operation: z.enum(["retrieve", "update", "merge", "consolidate"]).optional(),
+    operation: z
+      .enum(["retrieve", "update", "merge", "consolidate"])
+      .optional(),
   },
   async (args) => {
     const validated = UpdateMemorySchema.parse(args);
