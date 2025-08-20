@@ -349,8 +349,8 @@ server.tool(
 );
 
 server.tool(
-  "retrieve_memory",
-  "Retrieve a memory by ID",
+  "update_memory",
+  "Update/retrieve a memory by ID",
   {
     id: z.string(),
   },
